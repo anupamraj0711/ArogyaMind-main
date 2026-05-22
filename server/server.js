@@ -15,7 +15,11 @@ app.use(morgan('dev'));
 app.use(cors());
 app.use(express.json());
 
-mongoose.connect(process.env.MONGO_URI || 'mongodb+srv://anupam4:anupam4@cluster0.4evyxt8.mongodb.net/medinsight')
+const mongoURI = (process.env.MONGO_URI && process.env.MONGO_URI.startsWith('mongodb'))
+  ? process.env.MONGO_URI
+  : 'mongodb+srv://anupam4:anupam4@cluster0.4evyxt8.mongodb.net/medinsight';
+
+mongoose.connect(mongoURI)
   .then(async () => {
     console.log('MongoDB connected successfully');
     
@@ -46,7 +50,13 @@ app.use('/api/travel', travelRoutes);
 app.use('/api/chat', chatRoutes);
 
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', message: 'Agentic Care API is running' });
+  const dbState = mongoose.connection.readyState;
+  const states = ['disconnected', 'connected', 'connecting', 'disconnecting'];
+  res.json({ 
+    status: 'ok', 
+    message: 'Agentic Care API is running',
+    database: states[dbState] || 'unknown'
+  });
 });
 
 const PORT = process.env.PORT || 5000;
