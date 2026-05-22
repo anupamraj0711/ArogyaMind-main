@@ -1,93 +1,104 @@
-import { GoogleGenAI } from '@google/genai';
 import axios from 'axios';
-
-let ai;
 
 export const handleChat = async (req, res) => {
   try {
     const { message, history } = req.body;
 
-    if (!message) {
+    if (!message || !message.trim()) {
       return res.status(400).json({ error: 'Message is required' });
     }
 
-    // System prompt to set the AI's identity
-    const systemPrompt = `You are an intelligent, empathetic, and highly capable medical assistant AI integrated into the Agentic Healthcare Platform. 
-Your goal is to help users (patients) navigate the platform, understand their medical options, and assist with general inquiries. 
-You can answer questions about finding doctors, booking appointments, the symptom checking process, and travel assistance. 
-Keep your answers concise, professional, and friendly. If a user describes a medical emergency, advise them to call emergency services immediately.`;
+    // Build conversation messages array (like the working code pattern)
+    const systemMessage = {
+      role: 'system',
+      content: `You are an intelligent, empathetic medical assistant AI called "ArogyaMind Assistant" integrated into the ArogyaMind Healthcare Platform.
 
-    // Construct the conversation history
-    let conversation = systemPrompt + "\n\n";
-    if (history && history.length > 0) {
-      history.forEach(msg => {
-        conversation += `${msg.sender === 'user' ? 'Patient' : 'Assistant'}: ${msg.text}\n`;
+Your job is to:
+- Help patients understand their symptoms and when to seek care
+- Answer health-related questions with accurate, helpful information
+- Guide users to the right specialist or department
+- Explain medical terms in simple language
+- Assist with booking appointments, finding doctors, and platform navigation
+
+Rules:
+- Always be warm, professional, and empathetic
+- For emergencies (chest pain, difficulty breathing, stroke symptoms), always say: "Call emergency services (108) immediately"
+- Do NOT diagnose definitively — always recommend consulting a doctor
+- Keep responses concise and friendly (2-4 sentences usually)
+- If asked non-health questions, gently redirect to health topics`
+    };
+
+    // Convert history to OpenAI message format
+    const conversationMessages = [systemMessage];
+    if (history && Array.isArray(history)) {
+      history.slice(-10).forEach(msg => { // keep last 10 messages for context
+        conversationMessages.push({
+          role: msg.sender === 'user' ? 'user' : 'assistant',
+          content: msg.text
+        });
       });
     }
-    conversation += `Patient: ${message}\nAssistant:`;
 
-    let replyText = "";
+    // Add the current user message
+    conversationMessages.push({
+      role: 'user',
+      content: message
+    });
+
+    let replyText = '';
     let success = false;
 
-    // 1. Try Gemini if API key is provided
-    if (process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY.trim() !== '') {
+    // ── Call OpenRouter (same proven pattern) ──
+    if (process.env.OPENROUTER_API_KEY && process.env.OPENROUTER_API_KEY.trim()) {
       try {
-        if (!ai) {
-          ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-        }
-        const response = await ai.models.generateContent({
-          model: 'gemini-2.5-flash',
-          contents: conversation,
-        });
-        if (response && response.text) {
-          replyText = response.text;
-          success = true;
-        }
-      } catch (geminiErr) {
-        console.warn('Chat Gemini API call failed, trying fallback:', geminiErr.message);
-      }
-    }
+        console.log('🤖 Calling OpenRouter for chat...');
 
-    // 2. Try OpenRouter fallback
-    if (!success && process.env.OPENROUTER_API_KEY && process.env.OPENROUTER_API_KEY.trim() !== '') {
-      try {
-        console.log('Trying OpenRouter fallback for chat...');
-        const resp = await axios.post(
+        const response = await axios.post(
           'https://openrouter.ai/api/v1/chat/completions',
           {
-            model: process.env.OPENROUTER_MODEL || 'openai/gpt-3.5-turbo',
-            messages: [{ role: 'user', content: conversation }]
+            model: 'openai/gpt-3.5-turbo',
+            messages: conversationMessages
           },
           {
             headers: {
               Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
               'Content-Type': 'application/json'
             },
-            timeout: 15000
+            timeout: 20000
           }
         );
-        const content = resp?.data?.choices?.[0]?.message?.content;
-        if (content) {
-          replyText = content;
-          success = true;
-          console.log('OpenRouter chat fallback successful!');
-        }
-      } catch (openRouterErr) {
-        console.warn('OpenRouter chat fallback failed:', openRouterErr.message);
+
+        replyText = response.data.choices[0].message.content;
+        success = true;
+        console.log('✅ Chat response successful!');
+
+      } catch (apiErr) {
+        console.error('❌ OpenRouter chat error:', apiErr.response?.data || apiErr.message);
       }
     }
 
-    // 3. Fall back to friendly standard message if both AI calls failed
+    // ── Fallback if AI fails ──
     if (!success) {
-      console.log('Using friendly static assistant response.');
-      replyText = `Hello! I'm your healthcare assistant. It looks like our AI service is currently experiencing high load, but I can help answer general questions. You can check your symptoms on the "Symptom Checker" tab, find doctors under the "Specialist Finder" tab, manage your "Appointments", or use "Travel & Routing" to plan your hospital visit. If you have an urgent medical query, please contact a doctor or call emergency services directly.`;
+      const lower = message.toLowerCase();
+      if (lower.includes('chest') || lower.includes('heart attack') || lower.includes('can\'t breathe')) {
+        replyText = '🚨 This sounds like a medical emergency! Please call 108 (emergency services) immediately or go to the nearest emergency room. Do not wait.';
+      } else if (lower.includes('appointment') || lower.includes('book') || lower.includes('schedule')) {
+        replyText = 'You can book an appointment by going to the "Appointments" section in the sidebar. You can browse specialists and choose a convenient time slot.';
+      } else if (lower.includes('doctor') || lower.includes('specialist') || lower.includes('specialist')) {
+        replyText = 'You can find specialists by visiting the "AI Recommendations" section. After submitting your symptoms, the system will recommend the most suitable specialists for you.';
+      } else if (lower.includes('symptom') || lower.includes('feeling') || lower.includes('pain')) {
+        replyText = 'Please use the "Submit Symptoms" section to get an AI-powered analysis of your symptoms. It will assess severity and recommend the right specialist for you.';
+      } else {
+        replyText = 'I\'m here to help with your health questions! You can use our platform to check symptoms, find specialists, book appointments, or get travel assistance to hospitals. How can I assist you today?';
+      }
     }
 
     res.json({ reply: replyText });
+
   } catch (error) {
-    console.error('Error in chat controller:', error);
-    res.json({ 
-      reply: `I'm sorry, I encountered an issue processing that. Please try again in a moment, or use our manual navigation tabs to find doctors, check symptom history, or view your appointments.`
+    console.error('💥 Chat controller error:', error.message || error);
+    res.json({
+      reply: 'I\'m sorry, I\'m having trouble connecting right now. Please try again in a moment, or use the navigation menu to find doctors, check your symptoms, or manage appointments.'
     });
   }
 };

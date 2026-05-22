@@ -2,7 +2,6 @@ import { useState, useContext } from 'react';
 import { AuthContext } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import api from '../api';
-import { motion } from 'framer-motion';
 import { Stethoscope, Calendar, Activity, LogOut, ChevronRight } from 'lucide-react';
 import { useAppointments } from '../context/AppointmentsContext';
 
@@ -37,14 +36,17 @@ export default function Dashboard() {
 
   const handleBook = async (specialistId) => {
     try {
+      const appointmentDate = new Date();
+      appointmentDate.setDate(appointmentDate.getDate() + 1);
+
       await addAppointment({
         patientId: user._id,
         specialistId,
         symptomRecordId: analysis.record._id,
-        date: new Date(Date.now() + 86400000) // tomorrow
+        date: appointmentDate
       });
       alert('Appointment booked successfully!');
-    } catch (err) {
+    } catch {
       alert('Error booking appointment');
     }
   };
@@ -72,7 +74,7 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 max-w-7xl mx-auto">
         {/* Left Column: Symptom Input */}
         <div className="lg:col-span-1">
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="glass-panel p-6">
+          <div className="glass-panel p-6">
             <h2 className="text-lg font-semibold flex items-center gap-2 mb-4">
               <Stethoscope className="text-blue-400" /> Describe Symptoms
             </h2>
@@ -92,13 +94,13 @@ export default function Dashboard() {
                 {loading ? 'Analyzing with Gemini AI...' : 'Analyze Symptoms'}
               </button>
             </form>
-          </motion.div>
+          </div>
         </div>
 
         {/* Right Column: AI Analysis & Recommendations */}
         <div className="lg:col-span-2 space-y-6">
           {analysis ? (
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass-panel p-6">
+            <div className="glass-panel p-6">
               <h2 className="text-lg font-semibold mb-4 text-emerald-400 flex items-center gap-2">
                 <Activity /> AI Analysis Result
               </h2>
@@ -117,8 +119,10 @@ export default function Dashboard() {
               <div className="bg-slate-900/50 p-4 rounded-xl border border-slate-700/50 mb-6">
                 <p className="text-sm text-slate-400 mb-2">Potential Causes</p>
                 <ul className="list-disc pl-5 space-y-1">
-                  {analysis.record.aiAnalysis.potentialCauses.map((cause, i) => (
-                    <li key={i} className="text-slate-300">{cause}</li>
+                  {(analysis.record.aiAnalysis.conditions || analysis.record.aiAnalysis.potentialCauses || []).map((cause, i) => (
+                    <li key={i} className="text-slate-300">
+                      {typeof cause === 'string' ? cause : `${cause.name}${cause.probability ? ` (${cause.probability}%)` : ''}`}
+                    </li>
                   ))}
                 </ul>
               </div>
@@ -144,7 +148,7 @@ export default function Dashboard() {
               ) : (
                 <p className="text-slate-400 bg-slate-900/50 p-4 rounded-xl">No specific specialists found for this category yet. System will notify general practitioners.</p>
               )}
-            </motion.div>
+            </div>
           ) : (
             <div className="glass-panel p-12 flex flex-col items-center justify-center text-center h-full border-dashed">
               <Activity className="w-12 h-12 text-slate-600 mb-4" />
