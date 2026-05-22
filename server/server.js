@@ -15,7 +15,7 @@ app.use(morgan('dev'));
 app.use(cors());
 app.use(express.json());
 
-mongoose.connect(process.env.MONGO_URI || 'mongodb://localhost:27017/agentic-care')
+mongoose.connect(process.env.MONGO_URI || 'mongodb+srv://anupam4:anupam4@cluster0.4evyxt8.mongodb.net/medinsight')
   .then(async () => {
     console.log('MongoDB connected successfully');
     
