@@ -105,7 +105,7 @@ export const getHotelRecommendations = async (req, res) => {
         const resp = await axios.post(
           'https://openrouter.ai/api/v1/chat/completions',
           {
-            model: process.env.OPENROUTER_MODEL || 'gpt-3.5-turbo',
+            model: process.env.OPENROUTER_MODEL || 'openai/gpt-3.5-turbo',
             messages: [{ role: 'user', content: prompt }]
           },
           {

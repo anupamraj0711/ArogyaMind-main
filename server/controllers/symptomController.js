@@ -34,10 +34,21 @@ export const analyzeSymptoms = async (req, res) => {
           const jsonMatch = responseText.match(/\{[\s\S]*\}/);
           if (jsonMatch) {
             const cleanJson = jsonMatch[0].replace(/,\s*([\]}])/g, '$1');
-            aiAnalysis = JSON.parse(cleanJson);
-            aiAnalysis.rawResponse = responseText;
-            success = true;
-            console.log('Gemini symptom analysis successful!');
+            try {
+              const parsedJson = JSON.parse(cleanJson);
+              aiAnalysis = {
+                severity: parsedJson.severity || parsedJson.risk_level || parsedJson.risk || "Medium",
+                conditions: parsedJson.conditions || (parsedJson.possible_condition ? [{ name: parsedJson.possible_condition, probability: 80 }] : []),
+                recommendedSpecialistType: parsedJson.recommendedSpecialistType || parsedJson.specialist || "Primary Care Physician",
+                immediateAction: parsedJson.immediateAction || parsedJson.summary || (Array.isArray(parsedJson.recommendations) ? parsedJson.recommendations.join('. ') : parsedJson.recommendations) || "Monitor symptoms closely.",
+                dietAndLifestyle: parsedJson.dietAndLifestyle || (Array.isArray(parsedJson.recommendations) ? parsedJson.recommendations.slice(1).join('. ') : parsedJson.recommendations) || "Ensure adequate rest and hydration.",
+                rawResponse: responseText
+              };
+              success = true;
+              console.log('Gemini symptom analysis successful!');
+            } catch (parseErr) {
+              console.warn('Failed to parse Gemini JSON response:', parseErr.message);
+            }
           }
         }
       } catch (geminiErr) {
@@ -52,7 +63,7 @@ export const analyzeSymptoms = async (req, res) => {
         const resp = await axios.post(
           'https://openrouter.ai/api/v1/chat/completions',
           {
-            model: process.env.OPENROUTER_MODEL || 'gpt-3.5-turbo',
+            model: process.env.OPENROUTER_MODEL || 'openai/gpt-3.5-turbo',
             messages: [{ role: 'user', content: prompt }]
           },
           {
@@ -68,10 +79,21 @@ export const analyzeSymptoms = async (req, res) => {
         const jsonMatch = responseText.match(/\{[\s\S]*\}/);
         if (jsonMatch) {
           const cleanJson = jsonMatch[0].replace(/,\s*([\]}])/g, '$1');
-          aiAnalysis = JSON.parse(cleanJson);
-          aiAnalysis.rawResponse = responseText;
-          success = true;
-          console.log('OpenRouter symptom analysis successful!');
+          try {
+            const parsedJson = JSON.parse(cleanJson);
+            aiAnalysis = {
+              severity: parsedJson.severity || parsedJson.risk_level || parsedJson.risk || "Medium",
+              conditions: parsedJson.conditions || (parsedJson.possible_condition ? [{ name: parsedJson.possible_condition, probability: 80 }] : []),
+              recommendedSpecialistType: parsedJson.recommendedSpecialistType || parsedJson.specialist || "Primary Care Physician",
+              immediateAction: parsedJson.immediateAction || parsedJson.summary || (Array.isArray(parsedJson.recommendations) ? parsedJson.recommendations.join('. ') : parsedJson.recommendations) || "Monitor symptoms closely.",
+              dietAndLifestyle: parsedJson.dietAndLifestyle || (Array.isArray(parsedJson.recommendations) ? parsedJson.recommendations.slice(1).join('. ') : parsedJson.recommendations) || "Ensure adequate rest and hydration.",
+              rawResponse: responseText
+            };
+            success = true;
+            console.log('OpenRouter symptom analysis successful!');
+          } catch (parseErr) {
+            console.warn('Failed to parse OpenRouter JSON response:', parseErr.message);
+          }
         }
       } catch (openRouterErr) {
         console.warn('OpenRouter symptom analysis failed:', openRouterErr.message);
