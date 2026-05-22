@@ -48,11 +48,16 @@ export const login = async (req, res) => {
     const user = await User.findOne({ email }).populate('role');
     
     if (user && (await user.comparePassword(password))) {
+      const roleName = user.role?.name;
+      if (!roleName) {
+        return res.status(500).json({ message: 'User role is not configured' });
+      }
+
       res.json({
         _id: user._id,
         name: user.name,
         email: user.email,
-        role: user.role.name,
+        role: roleName,
         token: generateToken(user._id),
       });
     } else {
