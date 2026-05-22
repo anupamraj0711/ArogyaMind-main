@@ -4,11 +4,13 @@ import { Modal } from '../components/shared';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import api from '../api';
+import { useAppointments } from '../context/AppointmentsContext';
 
 export default function AppointmentScheduling() {
   const location = useLocation();
   const navigate = useNavigate();
   const { user } = useContext(AuthContext);
+  const { refreshAppointments } = useAppointments();
   
   const specialist = location.state?.specialist || {
     name: 'Dr. Emily Martinez',
@@ -66,6 +68,8 @@ export default function AppointmentScheduling() {
       } else {
         await api.post('/appointments', payload);
       }
+
+      await refreshAppointments();
       
       setShowModal(true);
     } catch (err) {

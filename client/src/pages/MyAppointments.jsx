@@ -1,43 +1,21 @@
-import React, { useState, useContext, useEffect } from 'react';
+import React, { useContext } from 'react';
 import { AuthContext } from '../context/AuthContext';
 import { StatusBadge, LoadingSpinner, EmptyState } from '../components/shared';
 import api from '../api';
 import { Calendar, Clock, MapPin, User as UserIcon } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useAppointments } from '../context/AppointmentsContext';
 
 export default function MyAppointments() {
   const { user } = useContext(AuthContext);
-  const [appointments, setAppointments] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const { appointments, loading, refreshAppointments } = useAppointments();
   const navigate = useNavigate(); // Added useNavigate
-
-  const fetchAppointments = () => {
-    const patientId = user?._id || user?.id;
-    if (patientId) {
-      setLoading(true);
-      api.get(`/appointments/${patientId}`)
-        .then(res => {
-          setAppointments(res.data);
-          setLoading(false);
-        })
-        .catch(err => {
-          console.error(err);
-          setLoading(false);
-        });
-    } else {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchAppointments();
-  }, [user]);
 
   const handleCancel = async (id) => {
     if (window.confirm("Are you sure you want to cancel this appointment?")) {
       try {
         await api.put(`/appointments/${id}`, { status: 'Cancelled' });
-        fetchAppointments(); // Refresh the list
+        await refreshAppointments();
       } catch (err) {
         console.error("Failed to cancel appointment", err);
         alert("Failed to cancel appointment. Please try again.");

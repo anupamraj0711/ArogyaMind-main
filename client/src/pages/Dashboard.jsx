@@ -4,9 +4,11 @@ import { useNavigate } from 'react-router-dom';
 import api from '../api';
 import { motion } from 'framer-motion';
 import { Stethoscope, Calendar, Activity, LogOut, ChevronRight } from 'lucide-react';
+import { useAppointments } from '../context/AppointmentsContext';
 
 export default function Dashboard() {
   const { user, logout } = useContext(AuthContext);
+  const { refreshAppointments } = useAppointments();
   const navigate = useNavigate();
   const [symptoms, setSymptoms] = useState('');
   const [analysis, setAnalysis] = useState(null);
@@ -41,6 +43,7 @@ export default function Dashboard() {
         symptomRecordId: analysis.record._id,
         date: new Date(Date.now() + 86400000) // tomorrow
       });
+      await refreshAppointments();
       alert('Appointment booked successfully!');
     } catch (err) {
       alert('Error booking appointment');

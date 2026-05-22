@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, AuthContext } from './context/AuthContext';
 import { useContext } from 'react';
+import { AppointmentsProvider } from './context/AppointmentsContext';
 
 // Old Pages
 import Register from './pages/Register';
@@ -20,20 +21,22 @@ import Layout from './components/Layout';
 function App() {
   return (
     <AuthProvider>
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<LoginPage />} />
-          <Route path="/register" element={<Register />} />
-          <Route path="/dashboard" element={<Layout><PatientDashboard /></Layout>} />
-          <Route path="/symptoms" element={<Layout><SymptomSubmission /></Layout>} />
-          <Route path="/specialists" element={<Layout><SpecialistRecommendation /></Layout>} />
-          <Route path="/appointments" element={<Layout><MyAppointments /></Layout>} />
-          <Route path="/schedule-appointment" element={<Layout><AppointmentScheduling /></Layout>} />
-          <Route path="/travel" element={<Layout><TravelAssistance /></Layout>} />
-          <Route path="/admin" element={<Layout><AdminPanel /></Layout>} />
-          <Route path="/profile" element={<Layout><Profile /></Layout>} />
-        </Routes>
-      </BrowserRouter>
+      <AppointmentsProvider>
+        <BrowserRouter>
+          <Routes>
+            <Route path="/" element={<LoginPage />} />
+            <Route path="/register" element={<Register />} />
+            <Route path="/dashboard" element={<Layout><PatientDashboard /></Layout>} />
+            <Route path="/symptoms" element={<Layout><SymptomSubmission /></Layout>} />
+            <Route path="/specialists" element={<Layout><SpecialistRecommendation /></Layout>} />
+            <Route path="/appointments" element={<Layout><MyAppointments /></Layout>} />
+            <Route path="/schedule-appointment" element={<Layout><AppointmentScheduling /></Layout>} />
+            <Route path="/travel" element={<Layout><TravelAssistance /></Layout>} />
+            <Route path="/admin" element={<Layout><AdminPanel /></Layout>} />
+            <Route path="/profile" element={<Layout><Profile /></Layout>} />
+          </Routes>
+        </BrowserRouter>
+      </AppointmentsProvider>
     </AuthProvider>
   );
 }

@@ -5,15 +5,20 @@ import React from 'react';
  * @param {{ status: 'Scheduled' | 'Confirmed' | 'Completed' | 'Cancelled' }} props
  */
 export const StatusBadge = ({ status }) => {
+  const normalizedStatus = typeof status === 'string' ? status.trim().toLowerCase() : 'scheduled';
+
   const colors = {
-    Scheduled: 'bg-[#1A6FB5] text-white',
-    Confirmed: 'bg-[#00C896] text-white',
-    Completed: 'bg-[#E2E8F0] text-[#7A8FA6]',
-    Cancelled: 'bg-[#E84040] text-white',
+    scheduled: 'bg-[#1A6FB5] text-white',
+    pending: 'bg-[#F59E0B] text-white',
+    cancelled: 'bg-[#E84040] text-white',
+    completed: 'bg-[#00C896] text-white',
+    confirmed: 'bg-[#00C896] text-white',
   };
+
+  const displayStatus = status || 'Scheduled';
   return (
-    <span className={`px-3 py-1 text-xs font-semibold rounded-full ${colors[status] || colors.Scheduled}`}>
-      {status}
+    <span className={`px-3 py-1 text-xs font-semibold rounded-full ${colors[normalizedStatus] || colors.scheduled}`}>
+      {displayStatus}
     </span>
   );
 };

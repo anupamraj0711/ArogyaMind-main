@@ -1,8 +1,9 @@
-import React, { useState, useContext, useEffect } from 'react';
+import React, { useState, useContext, useEffect, useCallback, useMemo } from 'react';
 import { StatusBadge } from '../components/shared';
 import { AuthContext } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import api from '../api';
+import { useAppointments } from '../context/AppointmentsContext';
 
 /**
  * PatientDashboard Component
@@ -10,90 +11,66 @@ import api from '../api';
  */
 export default function PatientDashboard() {
   const { user } = useContext(AuthContext);
-  const [activeTab, setActiveTab] = useState('Dashboard');
-  const [appointments, setAppointments] = useState([]);
-  const [upcomingAppointment, setUpcomingAppointment] = useState(null);
-  const [pendingActionsCount, setPendingActionsCount] = useState(0);
   const [latestRecommendation, setLatestRecommendation] = useState(null);
-  const [recentActivity, setRecentActivity] = useState([]);
+  const { appointments } = useAppointments();
   const navigate = useNavigate();
-  const isMobile = window.innerWidth < 768;
-
   useEffect(() => {
-    if (user?._id) {
-      Promise.all([
-        api.get(`/appointments/${user._id}`),
-        api.get(`/symptoms/history/${user._id}`)
-      ])
-        .then(([apptsRes, symptomsRes]) => {
-          const appts = apptsRes.data;
-          const symptoms = symptomsRes.data;
-          
-          setAppointments(appts);
-          
-          // Find the closest upcoming appointment
-          const now = new Date();
-          const upcoming = appts
-            .filter(appt => new Date(appt.date) > now && appt.status !== 'Cancelled')
-            .sort((a, b) => new Date(a.date) - new Date(b.date));
-          
-          if (upcoming.length > 0) {
-            setUpcomingAppointment(upcoming[0]);
-          }
-          
-          setPendingActionsCount(upcoming.length);
+    if (!user?._id) return;
 
-          if (symptoms.length > 0) {
-            // Check if conditions array is available, or use a fallback
-            const latestSym = symptoms[0];
-            let topCondition = null;
-            if (latestSym.aiAnalysis?.conditions?.length > 0) {
-              topCondition = latestSym.aiAnalysis.conditions[0];
-            } else if (latestSym.aiAnalysis?.rawResponse) {
-               try {
-                  const parsed = JSON.parse(latestSym.aiAnalysis.rawResponse);
-                  if (parsed.conditions?.length > 0) {
-                     topCondition = parsed.conditions[0];
-                  }
-               } catch (e) {}
-            }
-            
-            if (topCondition) {
-              setLatestRecommendation(topCondition);
-            } else if (latestSym.aiAnalysis?.recommendedSpecialistType) {
-              setLatestRecommendation({
-                 name: `Consult ${latestSym.aiAnalysis.recommendedSpecialistType}`,
-                 probability: 100
-              });
-            }
+    api.get(`/symptoms/history/${user._id}`)
+      .then(({ data: symptoms }) => {
+        if (symptoms.length > 0) {
+          const latestSym = symptoms[0];
+          let topCondition = null;
+
+          if (latestSym.aiAnalysis?.conditions?.length > 0) {
+            topCondition = latestSym.aiAnalysis.conditions[0];
+          } else if (latestSym.aiAnalysis?.rawResponse) {
+            try {
+              const parsed = JSON.parse(latestSym.aiAnalysis.rawResponse);
+              if (parsed.conditions?.length > 0) {
+                topCondition = parsed.conditions[0];
+              }
+            } catch (e) {}
           }
 
-          // Merge and sort for recent activity
-          const formattedAppts = appts.map(appt => ({
-            id: appt._id,
-            date: new Date(appt.createdAt || appt.date),
-            action: `${appt.specialist?.user?.name || appt.specialist?.doctor_id || 'Doctor'} Consultation`,
-            status: appt.status || 'Scheduled',
-            type: 'appointment'
-          }));
+          if (topCondition) {
+            setLatestRecommendation(topCondition);
+          } else if (latestSym.aiAnalysis?.recommendedSpecialistType) {
+            setLatestRecommendation({
+              name: `Consult ${latestSym.aiAnalysis.recommendedSpecialistType}`,
+              probability: 100
+            });
+          }
+        }
+      })
+      .catch(console.error);
+  }, [user?._id]);
 
-          const formattedSymptoms = symptoms.map(sym => ({
-            id: sym._id,
-            date: new Date(sym.createdAt),
-            action: 'Symptom Analysis',
-            status: 'Completed',
-            type: 'symptom'
-          }));
+  const upcomingAppointment = useMemo(() => {
+    const now = new Date();
+    return [...appointments]
+      .filter(appt => new Date(appt.date) > now && appt.status !== 'Cancelled')
+      .sort((a, b) => new Date(a.date) - new Date(b.date))[0] || null;
+  }, [appointments]);
 
-          const mergedActivity = [...formattedAppts, ...formattedSymptoms]
-            .sort((a, b) => b.date - a.date)
-            .slice(0, 5); // top 5 most recent
+  const pendingActionsCount = useMemo(() => {
+    const now = new Date();
+    return appointments.filter(appt => new Date(appt.date) > now && appt.status !== 'Cancelled').length;
+  }, [appointments]);
 
-          setRecentActivity(mergedActivity);
-        })
-        .catch(console.error);
-    }
-  }, [user]);
+  const recentActivity = useMemo(() => {
+    return [...appointments]
+      .sort((a, b) => new Date(b.createdAt || b.date) - new Date(a.createdAt || a.date))
+      .slice(0, 5)
+      .map(appt => ({
+        id: appt._id,
+        date: new Date(appt.createdAt || appt.updatedAt || appt.date),
+        action: `${appt.specialist?.user?.name || appt.specialist?.doctor_id || 'Doctor'} Consultation`,
+        status: appt.status || 'Scheduled',
+        type: 'appointment'
+      }));
+  }, [appointments]);
 
   const initials = user?.name ? user.name.substring(0, 2).toUpperCase() : 'U';
 
