@@ -1,16 +1,15 @@
 import React, { useState, useContext } from 'react';
-import { Calendar, Clock, User } from 'lucide-react';
+import { Calendar, Clock } from 'lucide-react';
 import { Modal } from '../components/shared';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
-import api from '../api';
 import { useAppointments } from '../context/AppointmentsContext';
 
 export default function AppointmentScheduling() {
   const location = useLocation();
   const navigate = useNavigate();
   const { user } = useContext(AuthContext);
-  const { refreshAppointments } = useAppointments();
+  const { addAppointment, updateAppointment } = useAppointments();
   
   const specialist = location.state?.specialist || {
     name: 'Dr. Emily Martinez',
@@ -64,12 +63,10 @@ export default function AppointmentScheduling() {
       };
 
       if (location.state?.appointmentId) {
-        await api.put(`/appointments/${location.state.appointmentId}`, payload);
+        await updateAppointment(location.state.appointmentId, payload);
       } else {
-        await api.post('/appointments', payload);
+        await addAppointment(payload);
       }
-
-      await refreshAppointments();
       
       setShowModal(true);
     } catch (err) {

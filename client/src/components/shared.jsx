@@ -115,15 +115,20 @@ export const LoadingSpinner = ({ text = "Loading..." }) => {
 
 /**
  * EmptyState Component
- * @param {{ message: string }} props
+ * @param {{ message: string, action?: { label: string, onClick: () => void } }} props
  */
-export const EmptyState = ({ message }) => {
+export const EmptyState = ({ message, action }) => {
   return (
     <div className="flex flex-col items-center justify-center py-16 text-center">
       <div className="w-16 h-16 bg-[#F4F7FB] rounded-full flex items-center justify-center mb-4 text-3xl">
         📭
       </div>
       <p className="text-[#7A8FA6]">{message}</p>
+      {action ? (
+        <button onClick={action.onClick} className="mt-4 btn-primary">
+          {action.label}
+        </button>
+      ) : null}
     </div>
   );
 };

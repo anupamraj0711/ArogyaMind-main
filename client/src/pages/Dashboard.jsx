@@ -8,7 +8,7 @@ import { useAppointments } from '../context/AppointmentsContext';
 
 export default function Dashboard() {
   const { user, logout } = useContext(AuthContext);
-  const { refreshAppointments } = useAppointments();
+  const { addAppointment } = useAppointments();
   const navigate = useNavigate();
   const [symptoms, setSymptoms] = useState('');
   const [analysis, setAnalysis] = useState(null);
@@ -37,13 +37,12 @@ export default function Dashboard() {
 
   const handleBook = async (specialistId) => {
     try {
-      await api.post('/appointments', {
+      await addAppointment({
         patientId: user._id,
         specialistId,
         symptomRecordId: analysis.record._id,
         date: new Date(Date.now() + 86400000) // tomorrow
       });
-      await refreshAppointments();
       alert('Appointment booked successfully!');
     } catch (err) {
       alert('Error booking appointment');

@@ -1,17 +1,23 @@
-import { createContext, useCallback, useContext, useEffect, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { AuthContext } from './AuthContext';
 import api from '../api';
 
-export const AppointmentsContext = createContext();
+export const AppointmentsContext = createContext(null);
+
+const normalizeAppointment = (appointment) => ({
+  ...appointment,
+  status: appointment?.status || 'Scheduled',
+});
 
 export const AppointmentsProvider = ({ children }) => {
   const { user } = useContext(AuthContext);
   const [appointments, setAppointments] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  const patientId = useMemo(() => user?._id || user?.id || null, [user?._id, user?.id]);
 
   const refreshAppointments = useCallback(async () => {
-    const patientId = user?._id || user?.id;
-
     if (!patientId) {
       setAppointments([]);
       setLoading(false);
@@ -19,18 +25,41 @@ export const AppointmentsProvider = ({ children }) => {
     }
 
     setLoading(true);
+    setError(null);
 
     try {
       const { data } = await api.get(`/appointments/${patientId}`);
-      setAppointments(data);
-      return data;
+      const normalized = Array.isArray(data) ? data.map(normalizeAppointment) : [];
+      setAppointments(normalized);
+      return normalized;
+    } catch (fetchError) {
+      setError(fetchError);
+      throw fetchError;
     } finally {
       setLoading(false);
     }
-  }, [user?._id, user?.id]);
+  }, [patientId]);
 
   useEffect(() => {
-    refreshAppointments();
+    refreshAppointments().catch(() => {});
+  }, [refreshAppointments]);
+
+  const addAppointment = useCallback(async (appointmentPayload) => {
+    const { data } = await api.post('/appointments', appointmentPayload);
+    await refreshAppointments();
+    return normalizeAppointment(data);
+  }, [refreshAppointments]);
+
+  const updateAppointment = useCallback(async (appointmentId, updates) => {
+    const { data } = await api.put(`/appointments/${appointmentId}`, updates);
+    await refreshAppointments();
+    return normalizeAppointment(data);
+  }, [refreshAppointments]);
+
+  const cancelAppointment = useCallback(async (appointmentId) => {
+    const { data } = await api.put(`/appointments/${appointmentId}`, { status: 'Cancelled' });
+    await refreshAppointments();
+    return normalizeAppointment(data);
   }, [refreshAppointments]);
 
   return (
@@ -38,7 +67,11 @@ export const AppointmentsProvider = ({ children }) => {
       value={{
         appointments,
         loading,
+        error,
         refreshAppointments,
+        addAppointment,
+        updateAppointment,
+        cancelAppointment,
         setAppointments,
       }}
     >
@@ -47,4 +80,12 @@ export const AppointmentsProvider = ({ children }) => {
   );
 };
 
-export const useAppointments = () => useContext(AppointmentsContext);
+export const useAppointments = () => {
+  const context = useContext(AppointmentsContext);
+
+  if (!context) {
+    throw new Error('useAppointments must be used within an AppointmentsProvider');
+  }
+
+  return context;
+};

@@ -1,21 +1,17 @@
-import React, { useContext } from 'react';
-import { AuthContext } from '../context/AuthContext';
+import React from 'react';
 import { StatusBadge, LoadingSpinner, EmptyState } from '../components/shared';
-import api from '../api';
 import { Calendar, Clock, MapPin, User as UserIcon } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAppointments } from '../context/AppointmentsContext';
 
 export default function MyAppointments() {
-  const { user } = useContext(AuthContext);
-  const { appointments, loading, refreshAppointments } = useAppointments();
+  const { appointments, loading, cancelAppointment } = useAppointments();
   const navigate = useNavigate(); // Added useNavigate
 
   const handleCancel = async (id) => {
     if (window.confirm("Are you sure you want to cancel this appointment?")) {
       try {
-        await api.put(`/appointments/${id}`, { status: 'Cancelled' });
-        await refreshAppointments();
+        await cancelAppointment(id);
       } catch (err) {
         console.error("Failed to cancel appointment", err);
         alert("Failed to cancel appointment. Please try again.");
